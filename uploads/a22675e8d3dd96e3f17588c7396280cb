@@ -1,0 +1,11 @@
+[
+{
+  "question" : "Cum il cheama pe cel mai mare frate a lui David?",
+  "answers" : ["Eliab", "Ionatan", "Aminadab","Nu stim"],
+  "correctAnswer":0
+},{
+  "question" : "Cum o cheama pe femeia caruia samson i-a spus in ce sta secretul puterii lui?",
+  "answers" : ["Ioana", "Dalia", "Dalila","Nu se spune"],
+  "correctAnswer":1
+  }
+]

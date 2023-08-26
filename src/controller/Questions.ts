@@ -5,10 +5,15 @@ import authMidInstance from "../middlewares/AuthMiddleware";
 import * as admin from 'firebase-admin';
 import { randomUUID } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
+import multer from 'multer';
+import fs from 'fs';
+import csvParser from 'csv-parser';
+import { formatQuestions } from '../utils/formatQuestions';
+import { addQuestionsToDB } from '../utils/addQuestionsToDB';
 
 class Questions{
     public path='/questions';
-
+    public upload = multer({ dest: 'uploads/' });
     public router = express.Router();
 
     constructor(){
@@ -24,7 +29,106 @@ class Questions{
         this.router.patch('/update',authMidInstance.authenticationTokenCheck,this.updateADocument);
         this.router.delete('/delete-all',authMidInstance.authenticationTokenCheck,this.deleteAll);
         this.router.post('/add-question',authMidInstance.authenticationTokenCheck,this.createNewQuestion);
+        this.router.post('/upload',authMidInstance.authenticationTokenCheck,this.upload.single('file'),this.fileUpload);
     }
+
+    async fileUpload(req:any,res:any){
+      if (!req.file) {
+        return res.status(400).json({ message: 'No file provided' });
+      }
+      const { originalname, mimetype, size, path: tempPath } = req.file;
+      if (mimetype === 'application/json') {
+        fs.readFile(tempPath, 'utf8', async(err, data) => {
+          if (err) {
+            console.error('Error reading file:', err);
+            return res.status(500).json({ error: 'Error processing the file' });
+          }
+    
+          try {
+            const resultedQuestionArray:Array<any> = [];
+            const jsonData = JSON.parse(data);
+            if(!Array.isArray(jsonData)){
+              return res.status(400).json({
+                message:"The file format is incorrect!"
+              })
+            }
+
+            for(const elem of jsonData){
+              if(Object.keys(elem).length !== 3){
+                  continue;
+              }
+              if(!elem.hasOwnProperty("question") || !elem.hasOwnProperty("answers") || !elem.hasOwnProperty("correctAnswer") ){
+                continue;
+              }
+              resultedQuestionArray.push(elem);
+            }
+            
+            await addQuestionsToDB(resultedQuestionArray);
+            return res.status(200).json({
+              message: 'File uploaded and processed successfully',
+              fileData: {
+                data: resultedQuestionArray.length,
+              },
+            });
+          } catch (err) {
+            console.error('Error parsing JSON:', err);
+            return res.status(400).json({ error: 'Invalid JSON format' });
+          }
+        });
+      } else if (mimetype === 'text/csv') {
+        const csvData: any[] = [];
+
+        fs.readFile(tempPath, 'utf8', async(err, data) => {
+          if (err) {
+            console.error('Error reading file:', err);
+            return res.status(500).json({ error: 'Error processing the file' });
+          }
+
+          const parsedData:any = [];
+          const lines = data.split("\n");
+          lines.forEach((line)=>{
+            line = line.trim();
+            const values = line.split(",");
+            parsedData.push(values);
+          })
+
+          
+          for(let elem of parsedData){
+            if(elem.size !== 6){
+              continue;
+            }
+            const question = elem[0];
+            const answer1 = elem[1];
+            const answer2 = elem[2];
+            const answer3 = elem[3];
+            const answer4 = elem[4];
+            const correctAnswer = elem[5];
+            if(question.size === 0 || answer1.size === 0 || answer2.size === 0 || answer3.size === 0 || answer4.size === 0){
+              continue;
+            }
+           
+           if(!Number.isInteger(correctAnswer)){
+              continue;
+           }
+          }
+
+          const formattedQuestions = formatQuestions(parsedData);
+          console.log(formattedQuestions);
+          await addQuestionsToDB(formattedQuestions);
+          return res.status(200).json({
+            message: 'File uploaded and processed successfully',
+            fileData: {
+              data: formattedQuestions.length,
+            },
+          });
+
+        });
+       
+      } else {
+        return res.status(400).json({ error: 'Unsupported file type' });
+      }
+    }
+
 
     async getADocument(req:Request, res:any){
       const validationSchema = Joi.object({
