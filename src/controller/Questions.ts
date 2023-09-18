@@ -285,7 +285,7 @@ class Questions{
         answer2:req.body.answer2,
         answer3:req.body.answer3,
         answer4:req.body.answer4,
-        correctAnswers:req.body.correctAnswers,
+        correctAnswers:[req.body.correctAnswers],
         questionDate:admin.firestore.FieldValue.serverTimestamp()
        })
        return res.status(200).json("OK");
@@ -293,6 +293,8 @@ class Questions{
       console.log(err);
       return res.sendStatus(500).json("Problem");
     }  
+
+   
   }
 
   async deleteAll(req:any, res:any){

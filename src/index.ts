@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import App from './app';
-import  Questions from "../src/controller/Questions";
+import  Questions from "./controller/Questions";
 import Authentication from './controller/Authentication';
 import { connectToFirebase } from './firebase/initialize_firebase';
 
